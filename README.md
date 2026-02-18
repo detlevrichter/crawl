@@ -68,58 +68,35 @@ Die benötigten Module werden anhand der package.json und package-lock.json inst
 
 Eine .env Datei muss angelegt bzw. angepasst werden. Beispiel:
 
-DB_HOST=localhost
-DB_NAME=crawl
-DB_USER=user
-DB_PASS=password
-
-LLM_API_KEY=your_api_key_here
+```
+hostname=localhost
+database=Datenbank
+username=Benutzer
+password=sicheresPasswort
+```
 
 Diese Datei darf nicht ins Repository committed werden.
 
 config.php
 
-In der config.php müssen projektspezifische Einstellungen vorgenommen werden, beispielsweise:
+```
+<?php
+define('ROOT_DIR',__DIR__);
+define('API_KEY', 'api-key');
+define('API_ENDPOINT', 'https://llm');
+define('MAX_STRLEN', 2048000);
 
-Datenbankverbindung
-
-API-Konfiguration
-
-Systempfade
-
-Headless-Browser-Konfiguration
+```
 
 ### 5. Datenbank einrichten
 
 Datenbank erstellen
 
-Tabellenstruktur importieren (falls SQL-Datei vorhanden)
-
-Ziel-Webseiten in der Datenbank hinterlegen
+Eine dump.sql Datei liegt im root Verzeichnis.
 
 ### 6. Anwendung starten
 
-Je nach Setup:
 
-PHP-Entwicklungsserver starten:
-
-php -S localhost:8000
-
-
-Oder über Apache/Nginx deployen.
-
-Falls ein Node-Service für den Headless Browser benötigt wird:
-
-node <start-script>
-
-
-oder ein entsprechendes npm-Script verwenden:
-
-npm run start
-
-Konfigurierbare Extraktion
-
-Die zu extrahierenden Eigenschaften (z. B. Titel, Preis, Beschreibung, Anbieter etc.) sind datenbankbasiert konfigurierbar. Dadurch kann das System flexibel auf unterschiedliche Webseitenstrukturen angepasst werden, ohne Änderungen am Anwendungscode vorzunehmen.
 
 ### Sicherheitshinweise
 
