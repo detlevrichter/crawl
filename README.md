@@ -1,4 +1,4 @@
-# CRAWL  
+# THK CRAWL  
 ## Content Retrieval and Analysis Workflow Layer
 
 CRAWL ist ein wissenschaftliches Projekt der TH Köln zur automatisierten Erfassung, Analyse und strukturierten Extraktion von Webinhalten.
@@ -47,7 +47,7 @@ Die Eigenschaften der zu extrahierenden Inhalte sind datenbankgestützt konfigur
 
 ```bash
 git clone <repository-url>
-cd crawl
+cd thk_crawl
 ```
 ### 2. PHP-Abhängigkeiten installieren
 ```
@@ -87,6 +87,7 @@ define('API_ENDPOINT', 'https://llm');
 define('MAX_STRLEN', 2048000);
 
 ```
+Wenn die Web-Oberfläche genutzt werden soll, muss noch ein tmp Ordner mir Schreibrechten erstellt werden.
 
 ### 5. Datenbank einrichten
 
@@ -96,7 +97,12 @@ Eine dump.sql Datei liegt im root Verzeichnis.
 
 ### 6. Anwendung starten
 
+Ein Webserver (z.B. Apache) verweist auf das public-Verzeichnis. Dort kann dann die Datei do.php über den Browser aufgerufen werden. Da kann man dann "manuell" crawlen und bekommt den Fortschritt angezeigt. 
 
+### 7. Ablauf
+- precrawl: Die Tabelle crawl_master wird gelesen und die Tabelle crawl_list wird mit den zu bearbeitenden URLs gefüllt
+- die URLs der crawl_list werden ausgelesen, von der KI bewertet und in verschiedene Tabellen eingetragen. Dabei werden die Attribute aus der Tabelle wp_competency_types für den Prompt verwendet. 
+- Hauptsächlich werden dann Tabellen wp_offers, offer_dates und wp_offer_competencies mit Inhalten gefüllt. 
 
 ### Sicherheitshinweise
 
@@ -114,6 +120,15 @@ CRAWL wurde im Rahmen eines Forschungsprojekts der TH Köln entwickelt und dient
 
 Forschungs- und Entwicklungsprojekt.
 Nicht als produktives Web-Scraping-Framework gedacht.
+Sicher sind noch sowohl Fehlfunktionen als auch Bugs enthalten. Bugreport (issue) oder direkter Kontakt sind erwünscht. Pullrequests würden uns sehr freuen!
 
+## Disclaimer
+
+Dieses Projekt befindet sich in einem aktiven Forschungs- und Entwicklungsstadium.  
+CRAWL wurde im Rahmen eines wissenschaftlichen Kontexts entwickelt und ist derzeit nicht als produktionsreifes System zu verstehen.
+
+Der Code enthält noch offene TODOs, experimentelle Komponenten sowie Stellen, die weiter konsolidiert, refaktoriert und dokumentiert werden müssen. Änderungen an Architektur, Schnittstellen und Konfigurationsmechanismen sind im weiteren Projektverlauf möglich.
+
+Es wird keine Gewähr für Vollständigkeit, Stabilität oder Einsatzfähigkeit in produktiven Umgebungen übernommen. Die Nutzung erfolgt auf eigene Verantwortung.
 
 
