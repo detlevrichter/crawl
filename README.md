@@ -5,7 +5,7 @@ CRAWL ist ein wissenschaftliches Projekt der TH Köln zur automatisierten Erfass
 
 Das System verwendet einen Headless Browser, um vordefinierte Webseiten (in einer Datenbank hinterlegt) automatisiert aufzurufen und deren Inhalte auszulesen. Die extrahierten Inhalte werden an ein Large Language Model (LLM) übergeben, das strukturierte Angebote anhand konfigurierbarer Eigenschaften extrahiert.
 
-Die Eigenschaften der zu extrahierenden Inhalte sind datenbankgestützt konfigurierbar und erlauben eine flexible Anpassung an unterschiedliche Webseitenstrukturen.
+Die Eigenschaften der zu extrahierenden Inhalte sind datenbankgestützt konfigurierbar.
 
 ---
 
@@ -26,7 +26,7 @@ Die Eigenschaften der zu extrahierenden Inhalte sind datenbankgestützt konfigur
 2. Der Headless Browser ruft diese Seiten automatisiert ab  
 3. Inhalte werden extrahiert und an das LLM übergeben  
 4. Das LLM strukturiert die Angebote gemäß Konfiguration  
-5. Ergebnisse werden gespeichert und weiterverarbeitet  
+5. Ergebnisse werden gespeichert  
 
 ---
 
