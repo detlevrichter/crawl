@@ -41,9 +41,9 @@ class OfferCategory extends Model
     }
 
     public function purge() {
-        $params[self::CATEGORY_ID] = $this->attributes[self::CATEGORY_ID];
+        
         $params[self::OFFER_ID] = $this->attributes[self::OFFER_ID];
-        DB::DB()->query("DELETE FROM {$this->table} WHERE ".self::CATEGORY_ID."= :".self::CATEGORY_ID ." AND ". self::OFFER_ID ."= :".self::OFFER_ID, $params );
+        DB::DB()->query("DELETE FROM {$this->table} WHERE  ". self::OFFER_ID ."= :".self::OFFER_ID, $params );
         return $this;
     }
 
@@ -54,7 +54,7 @@ class OfferCategory extends Model
      * @var string[]
      */
     protected $fillable = [
-        self::CATEGORY_ID,
+        
     ];
 
     /*

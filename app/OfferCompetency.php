@@ -6,8 +6,7 @@ class OfferCompetency extends Model
 {
  
 
-    public const ID = 'id';
-    public const CATEGORY_ID = 'category_id';
+    public const ID = 'id'; 
     public const OFFER_ID = 'offer_id';
     public const COMPETENCY = 'competency';
 
@@ -25,27 +24,12 @@ class OfferCompetency extends Model
         $this->attributes = $attributes;
         $this->competencies = DB::DB()->query("SELECT * from competency_types ORDER BY id ASC");
 
-      /*   $params = [];
-        foreach($competencies as $atr){
-            if(isset( $attributes[$atr->query_value] )){
-                $params[$atr->query_value] = $attributes[$atr->query_value];
-            }
-        }
-        $this->fill($params); */
-
-        /* if(isset($attributes[OfferCategory::OFFER_CATEGORY_OFFER_ID])){
-           $dbresult = $this->getByAttribute([OfferCategory::OFFER_CATEGORY_OFFER_ID => $attributes[OfferCategory::OFFER_CATEGORY_OFFER_ID]]);
-           if($dbresult[0] ?? false){
-               $params['id'] = $dbresult[0]->id;
-           }
-        } */
-        // parent::__construct($params);
+ 
     }
 
-    public function purge() {
-        $params[self::CATEGORY_ID] = $this->attributes[self::CATEGORY_ID];
+    public function purge() { 
         $params[self::OFFER_ID] = $this->attributes[self::OFFER_ID];
-        DB::DB()->query("DELETE FROM {$this->table} WHERE ".self::CATEGORY_ID."= :".self::CATEGORY_ID ." AND ". self::OFFER_ID ."= :".self::OFFER_ID, $params );
+        DB::DB()->query("DELETE FROM {$this->table} WHERE  ". self::OFFER_ID ."= :".self::OFFER_ID, $params );
         return $this;
     }
 
@@ -62,8 +46,7 @@ class OfferCompetency extends Model
                 }else{
 
                     $params[self::SCORE] = $this->attributes[$com->query_value];
-                }
-                $params[self::CATEGORY_ID] = $this->attributes[self::CATEGORY_ID];
+                } 
                 $params[self::OFFER_ID] = $this->attributes[self::OFFER_ID];
                 $params['created_at'] = date('Y-m-d H:i:s');
                 $params['updated_at'] = date('Y-m-d H:i:s');
@@ -76,8 +59,7 @@ class OfferCompetency extends Model
     /**
      * @var string[]
      */
-    protected $fillable = [
-        self::CATEGORY_ID,
+    protected $fillable = [ 
         self::COMPETENCY,
         self::SCORE,
     ];
