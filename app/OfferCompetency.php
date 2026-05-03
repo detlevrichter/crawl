@@ -38,14 +38,14 @@ class OfferCompetency extends Model
         $params = [];
         foreach($this->competencies as $com){
             $params = [];
-            if(isset( $this->attributes[$com->query_value] )){
-                $params[self::COMPETENCY] = $com->query_value ;
+            if(isset( $this->attributes[$com->slug] )){
+                $params[self::COMPETENCY] = $com->slug ;
                 if($com->type == 'float'){
-                    $params[self::SCORE] = (float)$this->attributes[$com->query_value];
+                    $params[self::SCORE] = (float)$this->attributes[$com->slug];
 
                 }else{
 
-                    $params[self::SCORE] = $this->attributes[$com->query_value];
+                    $params[self::SCORE] = $this->attributes[$com->slug];
                 } 
                 $params[self::OFFER_ID] = $this->attributes[self::OFFER_ID];
                 $params['created_at'] = date('Y-m-d H:i:s');

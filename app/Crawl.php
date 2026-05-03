@@ -205,8 +205,6 @@ class Crawl extends Model
         $offerTable = Offer::OFFER_TABLE;
         DB::DB()->query("DELETE $crawlListTable FROM $crawlListTable LEFT JOIN $masterCrawlTable ON $masterCrawlTable.id = master_id WHERE $masterCrawlTable.id  is null" );
         DB::DB()->query("DELETE $offerTable FROM $offerTable LEFT JOIN $crawlListTable ON $crawlListTable.id = crawl_list_id WHERE $crawlListTable.id  is null" );
-        $offerCategoriesTable = 'offer_categories';
-        DB::DB()->query("DELETE $offerCategoriesTable FROM $offerCategoriesTable LEFT JOIN $offerTable ON $offerTable.id = offer_id WHERE $offerTable.id  is null" );
         $offerCompetencies = 'offer_competencies';
         DB::DB()->query("DELETE $offerCompetencies FROM $offerCompetencies LEFT JOIN $offerTable ON $offerTable.id = offer_id WHERE $offerTable.id  is null" );
         $offerDates = 'offer_dates';
@@ -337,8 +335,6 @@ class Crawl extends Model
                 $offerdate = new OfferDate($eventInfo);
                 $offerdate->purge()->save();
 
-                $offercategory = new OfferCategory($eventInfo);
-                $offercategory->purge()->save();
                 $offercompetency = new OfferCompetency($eventInfo);
                 $offercompetency->purge()->save();
 

@@ -113,32 +113,10 @@ foreach($crawlListURLs as $crawlListURL ){
     if(!$offer->id)die('weg');
     $offerdate = new OfferDate($eventInfo);
     $offerdate->save();
-    if(!isset($eventInfo[OfferCategory::CATEGORY_ID])){
-      $eventInfo[OfferCategory::CATEGORY_ID] = 1;
-    }
-    $offercategory = new OfferCategory($eventInfo);
-    $offercategory->purge()->save();
-    $offercompetency = new OfferCompetency($eventInfo);
-    $offercompetency->purge()->save();
-
-    // andere Kategorien auch eintragen 
-    $eventInfo[OfferCategory::CATEGORY_ID] = 2;
-    $offercategory = new OfferCategory($eventInfo);
-    $offercategory->purge()->save();
-    $offercompetency = new OfferCompetency($eventInfo);
-    $offercompetency->purge()->save();
-
-    $eventInfo[OfferCategory::CATEGORY_ID] = 3;
-    $offercategory = new OfferCategory($eventInfo);
-    $offercategory->purge()->save();
-    $offercompetency = new OfferCompetency($eventInfo);
-    $offercompetency->purge()->save();
-
-
-
 
     $offercompetency = new OfferCompetency($eventInfo);
     $offercompetency->purge()->save();
+
   
   }
 

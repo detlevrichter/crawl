@@ -34,7 +34,7 @@ class Prompt extends Model
         $bspval = [0, 0, 1, 1, 0.5, 0.25, 0.75];
         $i = 0;
         foreach ($competencies as $competence) {
-            $examplesArray[$competence->query_value] =  $bspval[mt_rand(0, count($bspval) - 1)];
+            $examplesArray[$competence->slug] =  $bspval[mt_rand(0, count($bspval) - 1)];
         }
         $examplesArray = array_merge($examplesArray,$masterFieldsExampleArray);
          $basicEventInfoMessage = $this->getPart('preprompt'). "\n\n" .
@@ -44,8 +44,8 @@ class Prompt extends Model
                 Offer::OFFER_PROVIDER . ": ".$this->getPart(Offer::OFFER_PROVIDER)."\n"
      ;
                 foreach ($competencies as $competence) {
-                    $basicEventInfoMessage .=  $competence->query_value . ': ' .  str_replace(["\r", "\n"], '', $competence->description) . "\n";
-                    $examplesArray[$competence->query_value] =  str_replace(["\r", "\n"], '', trim($competence->example));
+                    $basicEventInfoMessage .=  $competence->slug . ': ' .  str_replace(["\r", "\n"], '', $competence->description) . "\n";
+                    $examplesArray[$competence->slug] =  str_replace(["\r", "\n"], '', trim($competence->example));
                 } 
                 if($masterFields){
                     $basicEventInfoMessage .=  $masterFields;
