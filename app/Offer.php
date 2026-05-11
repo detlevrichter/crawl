@@ -96,10 +96,6 @@ class Offer extends Model
             Offer::OFFER_PROVIDER => Arr::get($data, Offer::OFFER_PROVIDER),
             Offer::OFFER_TITLE => Arr::get($data, Offer::OFFER_TITLE),
             Offer::OFFER_DESCRIPTION => Arr::get($data, Offer::OFFER_DESCRIPTION),
-            // Offer::OFFER_PRICE => Arr::get($data, Offer::OFFER_PRICE),
-            // Offer::OFFER_DURATION => Arr::get($data, Offer::OFFER_DURATION),
-            // Offer::OFFER_START => Arr::get($data, Offer::OFFER_START),
-            // Offer::OFFER_PLACE => Arr::get($data, Offer::OFFER_PLACE),
             Offer::OFFER_LEVEL => (float)$level,
         ]);
 

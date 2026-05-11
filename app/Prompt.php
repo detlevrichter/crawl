@@ -28,7 +28,7 @@ class Prompt extends Model
         $examplesArray = [
             Offer::OFFER_TITLE => 'Einführung in die Python Programmierung',
             Offer::OFFER_DESCRIPTION => 'In diesem Kurs lernen Sie die Grundlagen der Python Programmierung.',
-            Offer::OFFER_PROVIDER => 'HÜF',
+            Offer::OFFER_LEVEL => "0.7"
 
         ];
         $bspval = [0, 0, 1, 1, 0.5, 0.25, 0.75];
@@ -41,8 +41,7 @@ class Prompt extends Model
                 '<fields>' . "\n" .
                 Offer::OFFER_TITLE  . ": ".$this->getPart(Offer::OFFER_TITLE)."\n" .
                 Offer::OFFER_DESCRIPTION  . ": ".$this->getPart(Offer::OFFER_DESCRIPTION)."\n" .
-                Offer::OFFER_PROVIDER . ": ".$this->getPart(Offer::OFFER_PROVIDER)."\n"
-     ;
+                Offer::OFFER_LEVEL . ': '.$this->getPart(Offer::OFFER_LEVEL) . "\n" ;
                 foreach ($competencies as $competence) {
                     $basicEventInfoMessage .=  $competence->slug . ': ' .  str_replace(["\r", "\n"], '', $competence->description) . "\n";
                     $examplesArray[$competence->slug] =  str_replace(["\r", "\n"], '', trim($competence->example));
