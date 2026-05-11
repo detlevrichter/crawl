@@ -4,3 +4,4 @@ config.php
 tmp/
 node_modules
 vendor
+public/dist/img/

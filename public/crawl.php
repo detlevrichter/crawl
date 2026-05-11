@@ -17,21 +17,17 @@ $client = new Show();
 $converter = new HtmlConverter();
 $converter->getConfig()->setOption('strip_tags', true);
 $eventInfo = '';
+$master = [];
 function verbose($msg){
   echo $msg .'<br>';
   flush();
 }
 $competencies = DB::DB()->query("SELECT * from competency_types ORDER BY id ASC");
 
-$crawlListURLs = DB::DB()->query("SELECT * FROM $crawlListTable " );
+$crawlListURLs = DB::DB()->query("SELECT * FROM $crawlListTable WHERE `Status` is null" );
 $examplesArray = [
                     Offer::OFFER_TITLE => 'Einführung in die Python Programmierung',
                     Offer::OFFER_DESCRIPTION => 'In diesem Kurs lernen Sie die Grundlagen der Python Programmierung.',
-                    OfferDate::OFFER_DATE_PRICE => '100 EUR',
-                    OfferDate::OFFER_DATE_DURATION => '1 Tag',
-                    OfferDate::OFFER_DATE_ZIP => '10247',
-                    OfferDate::OFFER_DATE_PLACE => 'Berlin',
-                    OfferDate::OFFER_DATE_START => '01.02.2025',
                     Offer::OFFER_LEVEL => '0.25'
 ];
 $bspval = [0,0,1,1,0.5,0.25,0.75];
@@ -42,6 +38,7 @@ foreach($competencies as $competence){
 // verbose( '<pre>');
 // verbose(var_export($crawlListURLs, true));
 foreach($crawlListURLs as $crawlListURL ){
+  $master = DB::DB()->query("SELECT * from crawl_master WHERE id =".(int)$crawlListURL->master_id );
   verbose('<strong>Crawle '.' Detailseite</strong> <small>'.$crawlListURL->url.'</small>');
   verbose('Hole Quelltext');
   $command = NODEJS_EXE . " " . dirname(__DIR__) . "/pup.js ". $crawlListURL->url;
@@ -57,12 +54,8 @@ foreach($crawlListURLs as $crawlListURL ){
              '<fields>' . "\n" .
                 Offer::OFFER_TITLE  . ": Titel des Seminars, Kurs oder der Veranstaltung.\n" .
                 Offer::OFFER_DESCRIPTION  . ": Kurzbeschreibung des Seminars, Kurs oder der Veranstaltung.\n" .
-                Offer::OFFER_PROVIDER . ": Name des Seminaranbieters. Leerer String wenn keine Angabe gefunden wird.\n" .
-                OfferDate::OFFER_DATE_PRICE . ': Preis des Seminars. Leerer String wenn keine Angabe gefunden wird.' . "\n" .
-                OfferDate::OFFER_DATE_DURATION . ': Dauer des Seminars. Leerer String wenn keine Angabe gefunden wird.' . "\n" .
-                OfferDate::OFFER_DATE_ZIP . ': Postleitzahl des Veranstaltungsorts oder leer wenn Online.' . "\n" .
-                OfferDate::OFFER_DATE_PLACE . ': Veranstaltungsort des Seminars. Leerer String wenn keine Angabe gefunden wird.' . "\n" .
-                OfferDate::OFFER_DATE_START . ': Startdatum des Termins. Leerer String wenn keine Angabe gefunden wird.' . "\n" .
+        //        Offer::OFFER_PROVIDER . ": Name des Seminaranbieters. Leerer String wenn keine Angabe gefunden wird.\n" .
+               
                 Offer::OFFER_LEVEL . ': Geschätzte Schwierigkeit / Einstiegshöhe des Seminars, Kurs oder der Veranstaltung. Grundkurse werden leichter eingeschätzt als Kurse für die Erfahrung vorausgesetzt wird. Wert zwischen 0 leicht und 1 schwer' . "\n" ;
   foreach($competencies as $competence){
       $basicEventInfoMessage .=  $competence->query_value . ': ' .  str_replace(["\r","\n"], '', $competence->description). "\n";
@@ -93,17 +86,16 @@ foreach($crawlListURLs as $crawlListURL ){
         throw new JsonException("Etwas ist schiefgelaufen mit JSON". $jsonException );
     }
     $offer = new Offer(            [
-        Offer::OFFER_CRAWL_LIST_ID => $crawlListURL->id,   //$webtext->id,
-        Offer::OFFER_URL => $crawlListURL->url ,// $webtext->{Webtexts::WEBTEXTS_URL},
+        Offer::OFFER_CRAWL_LIST_ID => $crawlListURL->id,   
+        Offer::OFFER_URL => $crawlListURL->url , 
     ]);
     if(is_null($eventInfo)){
       continue;
     }
+    $eventInfo['provider'] = $master[0]->Name;
     $offer->updateFromLLM($eventInfo);
-    $eventInfo[OfferDate::OFFER_DATE_OFFER_ID] = $offer->id;
+    
     if(!$offer->id)die('weg');
-    $offerdate = new OfferDate($eventInfo);
-    $offerdate->save();
 
     $offercompetency = new OfferCompetency($eventInfo);
     $offercompetency->purge()->save();

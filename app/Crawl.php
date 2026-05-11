@@ -43,70 +43,7 @@ class Crawl extends Model
         self::setConnection($pdo);
         $this->model = $model;
     }
-/*
-    public function getEventData(Webtexts $webtext): array
-    {
-        $url = $webtext->{Webtexts::WEBTEXTS_URL};
-        $markdownText =  $webtext->{Webtexts::WEBTEXTS_TEXT};
 
-        $this->content = '';
-        $this->promptTokens = 0;
-        $this->completionTokens = 0;
-        $this->stopReason = '';    
-
-
-            $data[static::PAGE_TYPE] = static::PAGE_TYPE_EVENT_DETAIL;
-
-            $basicEventInfoMessage =  "Bitte extrahiere folgende Information des Seminars / Kurses als JSON-Objekt mit folgenden Feldern:\n\n" .
-             '<fields>' . "\n" .
-                Offer::OFFER_TITLE  . ": Titel des Seminars, Kurs oder der Veranstaltung.\n" .
-                Offer::OFFER_DESCRIPTION  . ": Kurzbeschreibung des Seminars, Kurs oder der Veranstaltung.\n" .
-                Offer::OFFER_PROVIDER . ": Name des Seminaranbieters. Leerer String wenn keine Angabe gefunden wird.\n" .
-                OfferDate::OFFER_DATE_PRICE . ': Preis des Seminars. Leerer String wenn keine Angabe gefunden wird.' . "\n" .
-                OfferDate::OFFER_DATE_DURATION . ': Dauer des Seminars. Leerer String wenn keine Angabe gefunden wird.' . "\n" .
-                OfferDate::OFFER_DATE_ZIP . ': Postleitzahl des Veranstaltungsorts oder leer wenn Online.' . "\n" .
-                OfferDate::OFFER_DATE_PLACE . ': Veranstaltungsort des Seminars. Leerer String wenn keine Angabe gefunden wird.' . "\n" .
-                OfferDate::OFFER_DATE_START . ': Startdatum des Termins. Leerer String wenn keine Angabe gefunden wird.' . "\n" .
-                '</fields>' . "\n\n" .
-                 'ES IST SEHR WICHTIG DAS DIE ANTWORT IN JSON FORMATIERT IST UND DIE FELDER WIE OBEN BESCHRIEBEN ENTHÄLT.' . "\n\n" .
-                 '<example>' . "\n" .
-                 json_encode([
-                    Offer::OFFER_TITLE => 'Einführung in die Python Programmierung',
-                    Offer::OFFER_DESCRIPTION => 'In diesem Kurs lernen Sie die Grundlagen der Python Programmierung.',
-                    OfferDate::OFFER_DATE_PRICE => '100 EUR',
-                    OfferDate::OFFER_DATE_DURATION => '1 Tag',
-                    OfferDate::OFFER_DATE_ZIP => '10247',
-                    OfferDate::OFFER_DATE_PLACE => 'Berlin',
-                    OfferDate::OFFER_DATE_START => '01.02.2025',
-                 ], JSON_PRETTY_PRINT) . "\n" .
-                 '</example>';
-
-            $response =  $this->makeRequest($client, [
-                'messages' => [
-                    ['role' => 'system', 'content' =>  $basicEventInfoMessage],
-                    ['role' => 'user', 'content' => $message],
-                ],
-                'response_format' => [
-                    'type' => 'json_object',
-                ],
-            ]);
-
-            $eventInfo = $this->getFirstResultFromResponse($response);
-            try {
-                $eventInfo = json_decode($eventInfo, true);
-            } catch (\JsonException $jsonException) {
-                $this->updateLlmResultFromError($webtext, static::ERROR_JSON_PARSE_FAILED);
-                return [
-                    'error' => static::ERROR_JSON_PARSE_FAILED,
-                ];
-            }
-
-           return $data['event'] = $eventInfo;
-
-
-
-        }
-*/
     public function setCrawlMasterData($masterCrawlData){
         $this->masterCrawlData = $masterCrawlData;
     }
@@ -180,9 +117,11 @@ class Crawl extends Model
 
     public function setBadPage($url){
         $clt = self::CRAWL_LIST_TABLE;
+        /*
+        vielleicht direkt löschen?
         $sql = "DELETE FROM $clt WHERE url LIKE :url";
-        DB::DB()->query($sql,['url'=>$url]);
-        /* vielleicht nicht löschen sondern nur falsch setzen?
+        DB::DB()->query($sql,['url'=>$url]);*/
+        /* vielleicht nicht löschen sondern nur falsch setzen?     */
         $sql = "UPDATE {self::CRAWL_LIST_TABLE} SET Status = :status WHERE url LIKE :url";
         $this->table = self::CRAWL_LIST_TABLE;
         $dbresult = $this->getByAttribute(['url' => $url], PDO::FETCH_ASSOC);
@@ -193,7 +132,7 @@ class Crawl extends Model
 
         $enty->table = self::CRAWL_LIST_TABLE;
         $enty->save();
-        */
+   
 
     }
 /**
@@ -203,12 +142,14 @@ class Crawl extends Model
         $masterCrawlTable = self::CRAWL_MASTER_TABLE;
         $crawlListTable = self::CRAWL_LIST_TABLE;
         $offerTable = Offer::OFFER_TABLE;
-        DB::DB()->query("DELETE $crawlListTable FROM $crawlListTable LEFT JOIN $masterCrawlTable ON $masterCrawlTable.id = master_id WHERE $masterCrawlTable.id  is null" );
-        DB::DB()->query("DELETE $offerTable FROM $offerTable LEFT JOIN $crawlListTable ON $crawlListTable.id = crawl_list_id WHERE $crawlListTable.id  is null" );
         $offerCompetencies = 'offer_competencies';
+        // nichts in der crawl list wo es keinen master gibt
+        DB::DB()->query("DELETE $crawlListTable FROM $crawlListTable LEFT JOIN $masterCrawlTable ON $masterCrawlTable.id = master_id WHERE $masterCrawlTable.id  is null" );
+        // keine offers die nicht in der crawl liste sind
+        DB::DB()->query("DELETE $offerTable FROM $offerTable LEFT JOIN $crawlListTable ON $crawlListTable.id = crawl_list_id WHERE $crawlListTable.id  is null" );
+        // keine offer-Eigenschaften (offer_competencies) wenn es keine offers gibt
         DB::DB()->query("DELETE $offerCompetencies FROM $offerCompetencies LEFT JOIN $offerTable ON $offerTable.id = offer_id WHERE $offerTable.id  is null" );
-        $offerDates = 'offer_dates';
-        DB::DB()->query("DELETE $offerDates FROM $offerDates LEFT JOIN $offerTable ON $offerTable.id = offer_id WHERE $offerTable.id  is null" );
+
     }
 /**
  * precrawl füllt die crawl_list
@@ -261,7 +202,7 @@ class Crawl extends Model
         $converter->getConfig()->setOption('strip_tags', true);
         $eventInfo = '';
         $badPagesCount = 0;
-
+        $master = [];
         $competencies = DB::DB()->query("SELECT * from competency_types ORDER BY id ASC");
 
         $crawlListURLs = DB::DB()->query("SELECT * FROM $crawlListTable ");
@@ -283,19 +224,11 @@ class Crawl extends Model
             $source =  join("\r\n", $output);
             $source = Show::cleanHtml($source);
             $markdown = Show::cleanMarkup($converter->convert($source));
+            
+            $master = DB::DB()->query("SELECT * from crawl_master WHERE id =".(int)$crawlListURL->master_id );
+
             echo ('Frage bei der KI nach');
-            // if($i++ > 5)die;
-             
-            /*  $response =  $this->makeRequest($client, [
-                        'messages' => [
-                            ['role' => 'system', 'content' =>  $basicEventInfoMessage],
-                            ['role' => 'user', 'content' => $message],
-                        ],
-                        'response_format' => [
-                            'type' => 'json_object',
-                        ],
-                    ]);*/
-            //echo $basicEventInfoMessage; die;
+ 
             $answers = $client->chat($markdown, $model, $prompt);
             $offer = null;
             foreach ($answers as $answer) {
@@ -320,6 +253,7 @@ class Crawl extends Model
                 if (is_null($eventInfo)) {
                     continue;
                 }
+                $eventInfo['provider'] = $master[0]->Name;
                 try {
                     //code...
                     $offer->updateFromLLM($eventInfo);
@@ -330,10 +264,8 @@ class Crawl extends Model
                     $this->logThrowable($th);
                     continue;
                 }
-                $eventInfo[OfferDate::OFFER_DATE_OFFER_ID] = $offer->id;
                 if (!$offer->id) continue;
-                $offerdate = new OfferDate($eventInfo);
-                $offerdate->purge()->save();
+                $eventInfo['offer_id'] = $offer->id;
 
                 $offercompetency = new OfferCompetency($eventInfo);
                 $offercompetency->purge()->save();
