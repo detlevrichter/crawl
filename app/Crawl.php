@@ -213,6 +213,7 @@ class Crawl extends Model
         // verbose(var_export($crawlListURLs, true));
         $i = 0;
         foreach ($crawlListURLs as $crawlListURL) {
+            usleep(MICRO_SLEEP_TIME);
             $i++;
             $this->setProgress(round($i/$gesamtSeiten,3)*100, 'KI fragen - Seite '. $i .' von ' . $gesamtSeiten . ' davon schlechte Seiten: '. $badPagesCount);
             echo ('<strong>Crawle ' . ' Detailseite</strong> <small>' . $crawlListURL->url . '</small>');
@@ -234,7 +235,7 @@ class Crawl extends Model
             foreach ($answers as $answer) {
                 echo ('<br><strong>Ergebnis</strong><hr>' . nl2br($answer) . '<hr>');
                 $answer = trim($answer, "json \n\r\t\v\0`");
-                if (strcmp($answer, 'FALSE') == 0) {
+                if (strcmp($answer, 'FALSE') == 0 || strstr($answer,'Keine Antwort von der AI') !== false) {
                     // Sperre diese Seite
                     $c->setBadPage($crawlListURL->url);
                     $this->setProgress(round($i/$gesamtSeiten,3)*100, 'KI findet nix bei - Seite '. $i .' von ' . $gesamtSeiten .' url: '. $crawlListURL->url );
