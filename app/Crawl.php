@@ -37,18 +37,18 @@ class Crawl extends Model
     /**
      * @param string $model
      */
-    public function __construct(string $model = 'meta-llama-3.1-70b-instruct')
+    public function __construct(string $model = '')
     {
         $pdo = DB::DB()->PDO();
         self::setConnection($pdo);
-        $this->model = $model;
+        $this->model = $model?:LLM_MODEL;
     }
 
     public function setCrawlMasterData($masterCrawlData){
         $this->masterCrawlData = $masterCrawlData;
     }
 
-    public function savePossibleDetailPage($url){
+    public function savePossibleDetailPage(string $url){
         $enty = new self();
         $data = [
             'master_id' => $this->masterCrawlData->id,
@@ -115,7 +115,28 @@ class Crawl extends Model
         return $result;
     }
 
-    public function setBadPage($url){
+    public function setBadPage($url, $answer = ''){
+        $clt = self::CRAWL_LIST_TABLE;
+        /*
+        vielleicht direkt löschen?
+        $sql = "DELETE FROM $clt WHERE url LIKE :url";
+        DB::DB()->query($sql,['url'=>$url]);*/
+        /* vielleicht nicht löschen sondern nur falsch setzen?     */
+        $sql = "UPDATE {self::CRAWL_LIST_TABLE} SET Status = :status WHERE url LIKE :url";
+        $this->table = self::CRAWL_LIST_TABLE;
+        $dbresult = $this->getByAttribute(['url' => $url], PDO::FETCH_ASSOC);
+        $enty = new self();
+        $data = $dbresult[0];
+        $data['status'] = 'FALSE';
+        $data['markup'] = $answer;
+        $enty->fill($data);
+
+        $enty->table = self::CRAWL_LIST_TABLE;
+        $enty->save();
+   
+
+    }
+    public function setGoodPage($url){
         $clt = self::CRAWL_LIST_TABLE;
         /*
         vielleicht direkt löschen?
@@ -127,7 +148,7 @@ class Crawl extends Model
         $dbresult = $this->getByAttribute(['url' => $url], PDO::FETCH_ASSOC);
                 $enty = new self();
         $data = $dbresult[0];
-        $data['Status'] = 'FALSE';
+        $data['status'] = 'TRUE';
         $enty->fill($data);
 
         $enty->table = self::CRAWL_LIST_TABLE;
@@ -194,9 +215,8 @@ class Crawl extends Model
     {
 
         $crawlListTable = 'crawl_list';
-        $model = 'meta-llama-3.1-70b-instruct';
-        $c = $this;
-        // var_dump($c);
+        $model = LLM_MODEL;
+
         $client = new Show();
         $converter = new HtmlConverter();
         $converter->getConfig()->setOption('strip_tags', true);
@@ -205,7 +225,7 @@ class Crawl extends Model
         $master = [];
         $competencies = DB::DB()->query("SELECT * from competency_types ORDER BY id ASC");
 
-        $crawlListURLs = DB::DB()->query("SELECT * FROM $crawlListTable ");
+        $crawlListURLs = DB::DB()->query("SELECT * FROM $crawlListTable ORDER BY id DESC");
         $gesamtSeiten = count((array)$crawlListURLs); 
         $pobject = new Prompt(); 
         $prompt = $pobject->get();
@@ -218,7 +238,7 @@ class Crawl extends Model
             $this->setProgress(round($i/$gesamtSeiten,3)*100, 'KI fragen - Seite '. $i .' von ' . $gesamtSeiten . ' davon schlechte Seiten: '. $badPagesCount);
             echo ('<strong>Crawle ' . ' Detailseite</strong> <small>' . $crawlListURL->url . '</small>');
             echo ('Hole Quelltext');
-            $command = NODEJS_EXE . " " . dirname(__DIR__) . "/pup.js " . $crawlListURL->url;
+            $command = NODEJS_EXE . " " . dirname(__DIR__) . "/pup.js " . escapeshellarg($crawlListURL->url);
             exec($command, $output, $return_var);
             // entfernen leerer Elemente
             $output = array_filter($output);
@@ -237,10 +257,12 @@ class Crawl extends Model
                 $answer = trim($answer, "json \n\r\t\v\0`");
                 if (strcmp($answer, 'FALSE') == 0 || strstr($answer,'Keine Antwort von der AI') !== false) {
                     // Sperre diese Seite
-                    $c->setBadPage($crawlListURL->url);
+                    $this->setBadPage($crawlListURL->url, $answer);
                     $this->setProgress(round($i/$gesamtSeiten,3)*100, 'KI findet nix bei - Seite '. $i .' von ' . $gesamtSeiten .' url: '. $crawlListURL->url );
                      $badPagesCount++;
                     continue;
+                }else{
+                    $this->setGoodPage($crawlListURL->url);
                 }
                 try {
                     $eventInfo = json_decode($answer, true);
