@@ -27,7 +27,7 @@ module.exports = {
       }, maxScrolls);  // pass maxScrolls to the function
   }
 
-    const uri = (process.argv[2] || 'https://www.find-a-voice.de/');
+    const uri = (process.argv[2] || 'http://zomboo.com');
     
     const browser = await puppeteer.launch({
       headless: true,
@@ -36,7 +36,7 @@ module.exports = {
     });
     const page = await browser.newPage();
     await page.setJavaScriptEnabled(true);
-    await page.goto(uri);
+    const response = await page.goto(uri);
     await page.setViewport({
       width: 1200,
       height: 800
@@ -52,7 +52,9 @@ module.exports = {
 
     await page.screenshot({path:  __dirname + '/public/dist/img/screen2.png',fullPage:true});
     let stuff = await page.content();
-
+    if (stuff.includes("Access Denied") || stuff.length < 500 || !response.ok()) {
+       return 'FALSE Access Denied';
+    }
 
     await page.close();
     await browser.close(); 
