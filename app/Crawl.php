@@ -26,8 +26,11 @@ class Crawl extends Model
     public const ERROR_JSON_PARSE_FAILED = 'JSON_PARSE_FAILED';
     public const ERROR_EMPTY_RESPONSE = 'EMPTY_RESPONSE';
 
-    public $masterCrawlData;
-
+    public stdClass $masterCrawlData;
+    public HtmlConverter $converter;
+    public Show $client;
+    public $badPagesCount = 0;
+    public $pobject;
     private $content = '';
     private $promptTokens = 0;
     private $completionTokens = 0;
@@ -42,6 +45,10 @@ class Crawl extends Model
         $pdo = DB::DB()->PDO();
         self::setConnection($pdo);
         $this->model = $model?:LLM_MODEL;
+        $this->client = new Show();
+        $this->converter = new HtmlConverter();
+        $this->converter->getConfig()->setOption('strip_tags', true);
+        $this->pobject = new Prompt();
     }
 
     public function setCrawlMasterData($masterCrawlData){
@@ -50,12 +57,18 @@ class Crawl extends Model
 
     public function savePossibleDetailPage(string $url){
         $enty = new self();
+        $enty->table = self::CRAWL_LIST_TABLE;
+        $res = $enty->getByAttribute(['url'=>$url ]);
+        $id = NULL;
+        if(isset($res[0])){
+            $id = $res[0]->id ;
+        }
         $data = [
+            'id' => $id,
             'master_id' => $this->masterCrawlData->id,
             'url' => $url,
         ];
         $enty->fill($data);
-        $enty->table = self::CRAWL_LIST_TABLE;
         $enty->save();
 
     }
@@ -115,20 +128,13 @@ class Crawl extends Model
         return $result;
     }
 
-    public function setBadPage($url, $answer = ''){
-        $clt = self::CRAWL_LIST_TABLE;
-        /*
-        vielleicht direkt löschen?
-        $sql = "DELETE FROM $clt WHERE url LIKE :url";
-        DB::DB()->query($sql,['url'=>$url]);*/
-        /* vielleicht nicht löschen sondern nur falsch setzen?     */
-        $sql = "UPDATE {self::CRAWL_LIST_TABLE} SET Status = :status WHERE url LIKE :url";
+    public function setBadPage(string $url, $markdown = ''){
         $this->table = self::CRAWL_LIST_TABLE;
         $dbresult = $this->getByAttribute(['url' => $url], PDO::FETCH_ASSOC);
         $enty = new self();
         $data = $dbresult[0];
         $data['status'] = 'FALSE';
-        $data['markup'] = $answer;
+        $data['markup'] = $markdown;
         $enty->fill($data);
 
         $enty->table = self::CRAWL_LIST_TABLE;
@@ -136,19 +142,13 @@ class Crawl extends Model
    
 
     }
-    public function setGoodPage($url){
-        $clt = self::CRAWL_LIST_TABLE;
-        /*
-        vielleicht direkt löschen?
-        $sql = "DELETE FROM $clt WHERE url LIKE :url";
-        DB::DB()->query($sql,['url'=>$url]);*/
-        /* vielleicht nicht löschen sondern nur falsch setzen?     */
-        $sql = "UPDATE {self::CRAWL_LIST_TABLE} SET Status = :status WHERE url LIKE :url";
+    public function setGoodPage(string $url, $markdown = ''){
         $this->table = self::CRAWL_LIST_TABLE;
         $dbresult = $this->getByAttribute(['url' => $url], PDO::FETCH_ASSOC);
                 $enty = new self();
         $data = $dbresult[0];
         $data['status'] = 'TRUE';
+        $data['markup'] = $markdown;
         $enty->fill($data);
 
         $enty->table = self::CRAWL_LIST_TABLE;
@@ -184,7 +184,7 @@ class Crawl extends Model
         foreach($masterCrawlURLs as $masterCrawlURL ){
             $parsedURL = parse_url($masterCrawlURL->URL);
 
-            $command = NODEJS_EXE . " " . dirname(__DIR__) . "/pup.js ". $masterCrawlURL->URL;
+            $command = NODEJS_EXE . " " . dirname(__DIR__) . "/pup.js \"". $masterCrawlURL->URL."\"";
             exec($command, $output, $return_var);
             // entfernen leerer Elemente
             $output = array_filter($output);
@@ -211,99 +211,98 @@ class Crawl extends Model
         return $gesamt; 
     }
 
-    public function crawl()
-    {
-
+    public function crawl(bool $re = false){
         $crawlListTable = 'crawl_list';
-        $model = LLM_MODEL;
-
-        $client = new Show();
-        $converter = new HtmlConverter();
-        $converter->getConfig()->setOption('strip_tags', true);
-        $eventInfo = '';
-        $badPagesCount = 0;
-        $master = [];
-        $competencies = DB::DB()->query("SELECT * from competency_types ORDER BY id ASC");
-
-        $crawlListURLs = DB::DB()->query("SELECT * FROM $crawlListTable ORDER BY id DESC");
+        $this->badPagesCount = 0;
+        if($re){
+            $crawlListURLs = DB::DB()->query("SELECT * FROM $crawlListTable WHERE status LIKE 'FALSE' ");   
+        }else{
+            $crawlListURLs = DB::DB()->query("SELECT * FROM $crawlListTable ");
+        }
         $gesamtSeiten = count((array)$crawlListURLs); 
-        $pobject = new Prompt(); 
-        $prompt = $pobject->get();
-        // verbose( '<pre>');
-        // verbose(var_export($crawlListURLs, true));
+        $markdown = '';
+        $result = false;
         $i = 0;
         foreach ($crawlListURLs as $crawlListURL) {
             usleep(MICRO_SLEEP_TIME);
             $i++;
-            $this->setProgress(round($i/$gesamtSeiten,3)*100, 'KI fragen - Seite '. $i .' von ' . $gesamtSeiten . ' davon schlechte Seiten: '. $badPagesCount);
+            $this->setProgress(round($i/$gesamtSeiten,3)*100, 'KI fragen - Seite '. $i .' von ' . $gesamtSeiten . ' davon schlechte Seiten: '. $this->badPagesCount);
             echo ('<strong>Crawle ' . ' Detailseite</strong> <small>' . $crawlListURL->url . '</small>');
+            // beim recrawlen muss man den Quelltext nich noch mal holen, da ist er ja schon da
+            if($re){
+                $markdown = $crawlListURL->markup;
+            }else{
+                $markdown = $this->getMarkdown($crawlListURL);
+            }
+            $result = $this->handleMarkdown($crawlListURL, $markdown  );
+            if($result){
+                $this->setGoodPage($crawlListURL->url,$markdown);
+            }else{
+                $this->setBadPage($crawlListURL->url, $markdown);
+                $this->badPagesCount++;
+            }
+            
+        }
+    }
+
+
+    public function getMarkdown(stdClass $crawlListURL) : string{
             echo ('Hole Quelltext');
-            $command = NODEJS_EXE . " " . dirname(__DIR__) . "/pup.js " . escapeshellarg($crawlListURL->url);
+            $command = NODEJS_EXE . " " . dirname(__DIR__) . "/pup.js \"" . $crawlListURL->url ."\"";
             exec($command, $output, $return_var);
             // entfernen leerer Elemente
             $output = array_filter($output);
             $source =  join("\r\n", $output);
             $source = Show::cleanHtml($source);
-            $markdown = Show::cleanMarkup($converter->convert($source));
-            
-            $master = DB::DB()->query("SELECT * from crawl_master WHERE id =".(int)$crawlListURL->master_id );
-
-            echo ('Frage bei der KI nach');
- 
-            $answers = $client->chat($markdown, $model, $prompt);
-            $offer = null;
-            foreach ($answers as $answer) {
-                echo ('<br><strong>Ergebnis</strong><hr>' . nl2br($answer) . '<hr>');
-                $answer = trim($answer, "json \n\r\t\v\0`");
-                if (strcmp($answer, 'FALSE') == 0 || strstr($answer,'Keine Antwort von der AI') !== false) {
-                    // Sperre diese Seite
-                    $this->setBadPage($crawlListURL->url, $answer);
-                    $this->setProgress(round($i/$gesamtSeiten,3)*100, 'KI findet nix bei - Seite '. $i .' von ' . $gesamtSeiten .' url: '. $crawlListURL->url );
-                     $badPagesCount++;
-                    continue;
-                }else{
-                    $this->setGoodPage($crawlListURL->url);
-                }
-                try {
-                    $eventInfo = json_decode($answer, true);
-                } catch (\JsonException $jsonException) {
-                    throw new JsonException("Etwas ist schiefgelaufen mit JSON" . $jsonException);
-                }
-                $offer = new Offer([
-                    Offer::OFFER_CRAWL_LIST_ID => $crawlListURL->id,   //$webtext->id,
-                    Offer::OFFER_URL => $crawlListURL->url, // $webtext->{Webtexts::WEBTEXTS_URL},
-                ]);
-                if (is_null($eventInfo)) {
-                    continue;
-                }
-                $eventInfo['provider'] = $master[0]->Name;
-                try {
-                    //code...
-                    $offer->updateFromLLM($eventInfo);
-                } catch (\Throwable $th) {
-                    //throw $th;
-                    trigger_error(print_r($eventInfo,1));
-                    //throw new Exception(print_r($eventInfo,1), 1);
-                    $this->logThrowable($th);
-                    continue;
-                }
-                if (!$offer->id) continue;
-                $eventInfo['offer_id'] = $offer->id;
-
-                $offercompetency = new OfferCompetency($eventInfo);
-                $offercompetency->purge()->save();
-
-
-            }
-        }
+            return Show::cleanMarkup($this->converter->convert($source));
     }
+    public function handleMarkdown(stdClass $crawlListURL, string $markdown) :bool {
+        $master = DB::DB()->query("SELECT * from crawl_master WHERE id =".(int)$crawlListURL->master_id );
+        echo ('Frage bei der KI nach');
+        $prompt = $this->pobject->get();
+        $answers = $this->client->chat($markdown, $this->model, $prompt);
+        $offer = null;
+        foreach ($answers as $answer) {
+            echo ('<br><strong>Ergebnis</strong><hr>' . nl2br($answer) . '<hr>');
+            $answer = trim($answer, "json \n\r\t\v\0`");
+            if (strcmp($answer, 'FALSE') == 0 || strstr($answer,'Keine Antwort von der AI') !== false) {
+                return false;
+            }
+            try {
+                $eventInfo = json_decode($answer, true);
+            } catch (\JsonException $jsonException) {
+                throw new JsonException("Etwas ist schiefgelaufen mit JSON" . $jsonException);
+            }
+            $offer = new Offer([
+                Offer::OFFER_CRAWL_LIST_ID => $crawlListURL->id,   //$webtext->id,
+                Offer::OFFER_URL => $crawlListURL->url, // $webtext->{Webtexts::WEBTEXTS_URL},
+            ]);
+            if (is_null($eventInfo)) {
+                continue;
+            }
+            $eventInfo['provider'] = $master[0]->Name;
+            try {
+                //code...
+                $offer->updateFromLLM($eventInfo);
+            } catch (\Throwable $th) {
+                //throw $th;
+                trigger_error(print_r($eventInfo,1));
+                //throw new Exception(print_r($eventInfo,1), 1);
+                $this->logThrowable($th);
+                continue;
+            }
+            if (!$offer->id) continue;
+            $eventInfo['offer_id'] = $offer->id;
 
-
-
+            $offercompetency = new OfferCompetency($eventInfo);
+            $offercompetency->purge()->save();
+        }
+        return true;
+    }
     /**
      * 
      */
-    public function runCrawl($progressFile){
+    public function runCrawl(string $progressFile){
         $this->progressFile = $progressFile;
         $this->setProgress(1, 'Detailliste holen');
         $this->preCrawl();
@@ -311,12 +310,14 @@ class Crawl extends Model
         $this->referentialIntegrity();
         $this->setProgress(10, 'referenzielle Integrität hergestellt');
         $this->crawl();
+       // $this->crawl($re = true);
+
     }
 
     /**
      * 
      */
-    public function setProgress($i, $job = 'working'){
+    public function setProgress(int $i, $job = 'working'){
         file_put_contents($this->progressFile, json_encode([
                 'time' => date('Y-m-d H:i:s'),
                 'job' => $job,

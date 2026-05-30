@@ -80,14 +80,14 @@ class DB
 	*	3. Tries to connect to the database.
 	*	4. If connection failed, exception is displayed and a log file gets created.
 	*/
-		private function Connect($hostname, $database, $username, $password)
+		private function Connect(string $hostname, string $database, string $username, string $password)
 		{
 			global $settings;
-			$dsn = 'mysql:dbname='.$database.';host='.$hostname;
+			$dsn = 'mysql:dbname='.$database.';host='.$hostname.';charset=utf8mb4';
 			try 
 			{
 				# Read settings from INI file, set UTF8
-				$this->pdo = new PDO($dsn, $username, $password, array(PDO::MYSQL_ATTR_INIT_COMMAND => "SET NAMES utf8"));
+				$this->pdo = new PDO($dsn, $username, $password, []);
 				
 				# We can now log any exceptions on Fatal error. 
 				$this->pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
