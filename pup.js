@@ -28,7 +28,7 @@ module.exports = {
   }
 
     const uri = (process.argv[2] || 'http://zomboo.com');
-    
+    const cleanUrl = new URL(uri).href;
     const browser = await puppeteer.launch({
       headless: true,
       executablePath: process.env.CHROME_PATH || undefined,
@@ -36,11 +36,8 @@ module.exports = {
     });
     const page = await browser.newPage();
     await page.setJavaScriptEnabled(true);
-    const response = await page.goto(uri);
-    await page.setViewport({
-      width: 1200,
-      height: 800
-  });
+    await page.setViewport({ width: 1200, height: 800 });
+    const response = await page.goto(cleanUrl, { waitUntil: 'networkidle2' });
     await page.waitForSelector('body', { timeout: 5_000 });
     await autoScroll(page, 10);
     await page.screenshot({path:  __dirname + '/public/dist/img/screen.png',fullPage:true});
@@ -51,6 +48,42 @@ module.exports = {
     //await page.waitForNetworkIdle();
 
     await page.screenshot({path:  __dirname + '/public/dist/img/screen2.png',fullPage:true});
+    await page.evaluate(() => {
+
+        const selectors = [
+            'nav',
+            'footer',
+            'header',
+            'aside',
+
+            '.navigation',
+            '.menu',
+            '.sidebar',
+            '.footer',
+            '.header',
+
+            '#navigation',
+            '#menu',
+            '#sidebar',
+            '#footer',
+            '#header',
+
+            '.cookie',
+            '.cookies',
+            '.cookie-banner',
+            '#cookie-banner',
+
+            '.advertisement',
+            '.ads',
+            '.banner'
+        ];
+
+        selectors.forEach(selector => {
+            document.querySelectorAll(selector).forEach(el => el.remove());
+        });
+
+    });
+    
     let stuff = await page.content();
     if (stuff.includes("Access Denied") || stuff.length < 500 || !response.ok()) {
        return 'FALSE Access Denied';
