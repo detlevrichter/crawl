@@ -51,7 +51,7 @@ class Crawl extends Model
         $this->pobject = new Prompt();
     }
 
-    public function setCrawlMasterData($masterCrawlData){
+    public function setCrawlMasterData(stdClass $masterCrawlData){
         $this->masterCrawlData = $masterCrawlData;
     }
 
@@ -178,37 +178,54 @@ class Crawl extends Model
     public function preCrawl(){
         $gesamt = 0;
         $masterCrawlTable = self::CRAWL_MASTER_TABLE;
-        $crawlListTable = self::CRAWL_LIST_TABLE;
         $masterCrawlURLs = DB::DB()->query("SELECT * FROM $masterCrawlTable WHERE Detailseite LIKE :Detailseite OR Detailseite is null",['Detailseite'=>'Nein']);
-
+        $masterUrURL = '';
         foreach($masterCrawlURLs as $masterCrawlURL ){
-            $parsedURL = parse_url($masterCrawlURL->URL);
-
-            $command = NODEJS_EXE . " " . dirname(__DIR__) . "/pup.js \"". $masterCrawlURL->URL."\"";
-            exec($command, $output, $return_var);
-            // entfernen leerer Elemente
-            $output = array_filter($output);
-            $source =  join("\r\n", $output);
-
-            preg_match_all('~href="([^#][^"]*)"~m', $source, $detailUrls);
-            
-            $this->setCrawlMasterData($masterCrawlURL);
-            foreach($detailUrls[1] as $detailUrl){
-                $parsedDetailURL = parse_url($detailUrl); 
-                if(!isset($parsedDetailURL['host'])){
-                $detailUrl = $parsedURL['scheme'].'://'.$parsedURL['host']. $detailUrl;
+            // wenn pagination nötig, dann jetzt
+            if($masterCrawlURL->Paginierung == 'URL'){
+                if(is_numeric($masterCrawlURL->PaginierungsStopp) && $masterCrawlURL->PaginierungsStopp < 50){
+                    $masterUrURL = str_replace($masterCrawlURL->PaginierungsEigenschaft, '', $masterCrawlURL->URL);
+                    for($page=1; $page<=$masterCrawlURL->PaginierungsStopp; $page++){
+                        $masterCrawlURL->URL = $masterUrURL . preg_replace('/[01]+$/', $page, $masterCrawlURL->PaginierungsEigenschaft);
+                        //trigger_error($masterCrawlURL->URL);
+                        $this->setCrawlMasterData($masterCrawlURL);
+                        $detailUrls = $this->harvestDetailUrls($masterCrawlURL->URL );
+                        foreach($detailUrls  as $detailUrl){
+                            $gesamt += $this->composeAndSaveDetailUrl($detailUrl, $masterCrawlURL);
+                        }
+                    }
                 }
-                if(strstr($detailUrl, $masterCrawlURL->Verzeichnis)!==false  && strcmp($detailUrl, $masterCrawlURL->URL ) != 0 ){
-                $this->savePossibleDetailPage($detailUrl);
-                $gesamt++;
-
-                //echo $detailUrl;
-                //echo '<br>';
+            }else{
+                $this->setCrawlMasterData($masterCrawlURL);
+                $detailUrls = $this->harvestDetailUrls($masterCrawlURL->URL );
+                foreach($detailUrls  as $detailUrl){
+                    $gesamt += $this->composeAndSaveDetailUrl($detailUrl, $masterCrawlURL);
                 }
-
             }
         }
         return $gesamt; 
+    }
+    public function harvestDetailUrls(string $masterUrl) : array{
+        $command = NODEJS_EXE . " " . dirname(__DIR__) . "/pup.js \"". $masterUrl."\"";
+        exec($command, $output, $return_var);
+        $output = array_filter($output);
+        $source =  join("\r\n", $output);
+
+        preg_match_all('~href="([^#][^"]*)"~m', $source, $detailUrls);
+        return $detailUrls[1];
+    }
+    public function composeAndSaveDetailUrl(string $detailUrl, stdClass $masterCrawlURL) : int {
+        $teilsumme = 0;
+        $parsedMasterURL = parse_url($masterCrawlURL->URL); 
+        $parsedDetailURL = parse_url($detailUrl); 
+        if(!isset($parsedDetailURL['host'])){
+            $detailUrl = $parsedMasterURL['scheme'].'://'.$parsedMasterURL['host']. $detailUrl;
+        }
+        if(strstr($detailUrl, $masterCrawlURL->Verzeichnis)!==false  && strcmp($detailUrl, $masterCrawlURL->URL ) != 0 ){
+            $this->savePossibleDetailPage($detailUrl);
+            $teilsumme++;
+        }
+        return $teilsumme;
     }
 
     public function crawl(bool $re = false){
