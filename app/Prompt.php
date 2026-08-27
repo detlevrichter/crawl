@@ -12,6 +12,8 @@ class Prompt extends Model
         $this->masterID = $masterID;
         $masterFields = $this->getMasterPart('FieldsPrompt');
         $masterFieldsExample = $this->getMasterPart('FieldsExample');
+        $masterPrePrompt = $this->getMasterPart('PrePrompt');
+        $masterPostPrompt = $this->getMasterPart('PostPrompt');
         $masterFields = trim($masterFields);
         $masterFieldsExample = trim($masterFieldsExample);
         $masterFieldsExampleArray = [];//preg_split()
@@ -39,9 +41,9 @@ class Prompt extends Model
         $examplesArray = array_merge($examplesArray,$masterFieldsExampleArray);
          $basicEventInfoMessage = $this->getPart('preprompt'). "\n\n" .
                 '<fields>' . "\n" .
-                Offer::OFFER_TITLE  . ": ".$this->getPart(Offer::OFFER_TITLE)."\n" .
-                Offer::OFFER_DESCRIPTION  . ": ".$this->getPart(Offer::OFFER_DESCRIPTION)."\n" .
-                Offer::OFFER_LEVEL . ': '.$this->getPart(Offer::OFFER_LEVEL) . "\n" ;
+                "title: ".$this->getPart('title')."\n" .
+                "description: ".$this->getPart('description')."\n" .
+                'level: '.$this->getPart('level') . "\n" ;
                 foreach ($competencies as $competence) {
                     $basicEventInfoMessage .=  $competence->slug . ': ' .  str_replace(["\r", "\n"], '', $competence->description) . "\n";
                     $examplesArray[$competence->slug] =  str_replace(["\r", "\n"], '', trim($competence->example));
@@ -59,7 +61,7 @@ class Prompt extends Model
                 
             $basicEventInfoMessage .=     '</example>';
 
-        return $basicEventInfoMessage;
+        return $masterPrePrompt . "\n" . $basicEventInfoMessage . "\n" . $masterPostPrompt;
     }
     public function getPart($identifier, $part = 'field'){
         $data = DB::DB()->single("SELECT data FROM prompt WHERE identifier = :identifier",['identifier'=>$identifier]);

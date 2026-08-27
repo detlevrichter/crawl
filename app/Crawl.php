@@ -178,7 +178,7 @@ class Crawl extends Model
     public function preCrawl(){
         $gesamt = 0;
         $masterCrawlTable = self::CRAWL_MASTER_TABLE;
-        $masterCrawlURLs = DB::DB()->query("SELECT * FROM $masterCrawlTable WHERE Detailseite LIKE :Detailseite OR Detailseite is null",['Detailseite'=>'Nein']);
+        $masterCrawlURLs = DB::DB()->query("SELECT * FROM $masterCrawlTable WHERE Aktiv = 1");
         $masterUrURL = '';
         foreach($masterCrawlURLs as $masterCrawlURL ){
             // wenn pagination nötig, dann jetzt
@@ -189,7 +189,7 @@ class Crawl extends Model
                         $masterCrawlURL->URL = $masterUrURL . preg_replace('/[01]+$/', $page, $masterCrawlURL->PaginierungsEigenschaft);
                         //trigger_error($masterCrawlURL->URL);
                         $this->setCrawlMasterData($masterCrawlURL);
-                        $detailUrls = $this->harvestDetailUrls($masterCrawlURL->URL );
+                        $detailUrls = $this->harvestDetailUrls($masterCrawlURL->URL, $masterCrawlURL );
                         foreach($detailUrls  as $detailUrl){
                             $gesamt += $this->composeAndSaveDetailUrl($detailUrl, $masterCrawlURL);
                         }
@@ -197,21 +197,31 @@ class Crawl extends Model
                 }
             }else{
                 $this->setCrawlMasterData($masterCrawlURL);
-                $detailUrls = $this->harvestDetailUrls($masterCrawlURL->URL );
+                $detailUrls = $this->harvestDetailUrls($masterCrawlURL->URL, $masterCrawlURL );
                 foreach($detailUrls  as $detailUrl){
                     $gesamt += $this->composeAndSaveDetailUrl($detailUrl, $masterCrawlURL);
+                    $this->setProgress(1, 'Detailliste holen '. $gesamt );
                 }
             }
         }
         return $gesamt; 
     }
-    public function harvestDetailUrls(string $masterUrl) : array{
-        $command = NODEJS_EXE . " " . dirname(__DIR__) . "/pup.js \"". $masterUrl."\"";
-        exec($command, $output, $return_var);
-        $output = array_filter($output);
-        $source =  join("\r\n", $output);
+    public function harvestDetailUrls(string $masterUrl, $masterCrawlURL = null) : array{
+        $options = '{}';
+        if($masterCrawlURL){
+            $options = json_encode(json_decode($masterCrawlURL->customCommands));
+        }
+        $command = NODEJS_EXE . " " . dirname(__DIR__) . "/pup.js \"". $masterUrl."\" " . escapeshellarg( $options );
 
+        exec($command, $output, $return_var);
+      //  exec($command . " 2>&1", $output, $return_var);
+
+        $output = array_filter($output);
+         $source =  join("\r\n", $output);
+// echo '<hr>Anzahlderkurse: ';
+// echo $count = substr_count($source, '/p/veranstaltungsprogramm');
         preg_match_all('~href="([^#][^"]*)"~m', $source, $detailUrls);
+      //  echo count( $detailUrls[1]);
         return $detailUrls[1];
     }
     public function composeAndSaveDetailUrl(string $detailUrl, stdClass $masterCrawlURL) : int {
@@ -221,6 +231,16 @@ class Crawl extends Model
         if(!isset($parsedDetailURL['host'])){
             $detailUrl = $parsedMasterURL['scheme'].'://'.$parsedMasterURL['host']. $detailUrl;
         }
+        if ($masterCrawlURL->includeRegex && !preg_match($masterCrawlURL->includeRegex, $detailUrl)) {
+            // Include-Regel nicht erfüllt
+            return $teilsumme;
+        }
+
+        if ($masterCrawlURL->excludeRegex && preg_match($masterCrawlURL->excludeRegex, $detailUrl)) {
+            // Exclude-Regel erfüllt
+            return $teilsumme;
+        }
+
         if(strstr($detailUrl, $masterCrawlURL->Verzeichnis)!==false  && strcmp($detailUrl, $masterCrawlURL->URL ) != 0 ){
             $this->savePossibleDetailPage($detailUrl);
             $teilsumme++;
@@ -250,6 +270,7 @@ class Crawl extends Model
                 $markdown = $crawlListURL->markup;
             }else{
                 $markdown = $this->getMarkdown($crawlListURL);
+                $markdown = "\n". 'Quell-URL: '.$crawlListURL->url . "\n" . $markdown;
             }
             $result = $this->handleMarkdown($crawlListURL, $markdown  );
             if($result){
@@ -276,7 +297,7 @@ class Crawl extends Model
     public function handleMarkdown(stdClass $crawlListURL, string $markdown) :bool {
         $master = DB::DB()->query("SELECT * from crawl_master WHERE id =".(int)$crawlListURL->master_id );
         echo ('Frage bei der KI nach');
-        $prompt = $this->pobject->get();
+        $prompt = $this->pobject->get((int)$crawlListURL->master_id);
         $answers = $this->client->chat($markdown, $this->model, $prompt);
         $offer = null;
         foreach ($answers as $answer) {

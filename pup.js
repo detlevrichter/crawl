@@ -25,9 +25,75 @@ module.exports = {
                 }, 100);
             });
         }, maxScrolls);  // pass maxScrolls to the function
-    }
+        }
+        const performActions = async (page, actions) => {
+            if (
+                actions &&
+                !Array.isArray(actions) &&
+                Object.keys(actions).length === 0
+            ) {
+                return;
+            }
+            // Ein einzelnes Objekt oder ein Array akzeptieren
+            if (!Array.isArray(actions)) {
+                actions = [actions];
+            }
+            
+            
+            for (const action of actions) {
+                switch (action.action) {
+                    
+                    case "click":
+                        
+                        await page.waitForSelector(action.selector);
+                        await page.evaluate(selector => {
+                                document.querySelector(selector)?.click();
+                            }, action.selector);
+                        await page.screenshot({path:  __dirname + '/public/dist/img/screen3.png',fullPage:true});
+                         
 
+                        break;
+                        
+                        
+                    case "clickUntilStable": {
+                        
+                        const maxClicks = action.maxClicks ?? 5;
+                        
+                        for (let i = 0; i < maxClicks; i++) {
+                       
+                            // Prüfen, ob der "Mehr laden"-Container bereits versteckt ist
+                 
+                            
+                            // Button suchen
+                            const button = await page.$(action.selector);
+                  
+                            if (!button) {
+                                break;
+                            }
+                   
+                          //  await button.click();
+                            await page.evaluate(selector => {
+                                document.querySelector(selector)?.click();
+                            }, action.selector);
+
+                            // Warten bis neue Inhalte geladen wurden
+                            await page.waitForNetworkIdle();
+                            
+                        }
+                        
+                        break;
+                    }
+                    
+                    default:
+                        throw new Error(
+                            `Unbekannte Action: ${JSON.stringify(action)}`
+                        );
+                    }
+                }
+            }
+                
         const uri = (process.argv[2] || 'http://zomboo.com');
+        const params = JSON.parse(process.argv[3] || "{}");
         const cleanUrl = new URL(uri).href;
         const browser = await puppeteer.launch({
         headless: true,
@@ -43,6 +109,7 @@ module.exports = {
             await autoScroll(page, 10);
             await page.screenshot({path:  __dirname + '/public/dist/img/screen.png',fullPage:true});
             await page.waitForNetworkIdle();
+            await performActions(page, params);
             // ist vielleicht ein button und vielleicht ist der Text nicht "2"
             //const nextPage = await getByText(page, "a", "2");
             //await nextPage.click();
@@ -52,11 +119,12 @@ module.exports = {
             await page.evaluate(() => {
 
                 const selectors = [
+                    'head',
                     'nav',
                     'footer',
                     'header',
                     'aside',
-
+                    'script',
                     '.navigation',
                     '.menu',
                     '.sidebar',

@@ -39,9 +39,15 @@
 <body class="bg-light">
   <div class="container">
     <h1>Crawl</h1>
+    <div class="d-flex justify-content-between">
     <div class="d-flex gap-2">
       <button id="startBtn" class="btn btn-primary">Crawl starten</button> 
       <button id="killBtn" class="btn btn-danger">Crawl Abbrechen</button> 
+ 
+    </div>      
+    <button id="emptyBtn" class="btn btn-outline-danger ms-4">
+        🗑 Tabellen leeren
+    </button>  
     </div> 
     <p id="status">Status: wartet...</p>
     <p id="job">...</p>
@@ -57,7 +63,25 @@
             const timeDisplay = document.getElementById('time');
             const killBtn = document.getElementById('killBtn');
             let pollingInterval = null;
+            document.getElementById('emptyBtn').addEventListener('click', () => {
+                 if (!confirm('Willst du die Tabellen wirklich leeren?')) {
+                    return;
+                }
+                fetch('empty_tables.php', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded'
+                    },
+                    body: new URLSearchParams({
+                        hash: 'DEIN_GEHEIMER_HASH'
+                    })
+                })
+                .then(response => response.text())
+                .then(data => {
+                    alert(data);
+                });
 
+            });
             document.getElementById('startBtn').addEventListener('click', () => {
                 fetch('start_crawl.php')
                     .then(r => r.json())
