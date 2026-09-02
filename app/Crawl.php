@@ -229,6 +229,7 @@ class Crawl extends Model
         $parsedMasterURL = parse_url($masterCrawlURL->URL); 
         $parsedDetailURL = parse_url($detailUrl); 
         if(!isset($parsedDetailURL['host'])){
+            $detailUrl = '/' . ltrim($detailUrl, '/');
             $detailUrl = $parsedMasterURL['scheme'].'://'.$parsedMasterURL['host']. $detailUrl;
         }
         if ($masterCrawlURL->includeRegex && !preg_match($masterCrawlURL->includeRegex, $detailUrl)) {
